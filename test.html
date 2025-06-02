@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TrashSnap Worker Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .upload-area { border: 2px dashed #ccc; padding: 20px; text-align: center; margin: 20px 0; }
+        .result { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .description { background: #e3f2fd; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #2196f3; }
+        .classification { background: #f3e5f5; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #9c27b0; }
+        .processing-info { background: #fff3e0; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #ff9800; }
+        input, button { margin: 10px 0; padding: 10px; }
+        button { background: #4caf50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .match { margin: 5px 0; padding: 8px; background: white; border-radius: 3px; }
+        .top-match { background: #c8e6c9; font-weight: bold; }
+        .url-toggle { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🗑️ TrashSnap Worker Test</h1>
+    
+    <div class="upload-area">
+        <input type="file" id="imageInput" accept="image/*">
+        <br>
+        <div class="url-toggle">
+            <label>
+                <input type="radio" name="url" value="local" checked> Local (http://localhost:8787)
+            </label>
+            <label>
+                <input type="radio" name="url" value="production"> Production (https://trashsnap-worker.bellasenior.workers.dev)
+            </label>
+        </div>
+        <button onclick="classifyImage()">Classify Image</button>
+    </div>
+    
+    <div id="result"></div>
+
+    <script>
+        async function classifyImage() {
+            const fileInput = document.getElementById('imageInput');
+            const resultDiv = document.getElementById('result');
+            
+            if (!fileInput.files[0]) {
+                alert('Please select an image');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            
+            // Get selected URL
+            const urlType = document.querySelector('input[name="url"]:checked').value;
+            const url = urlType === 'local' 
+                ? 'http://localhost:8787' 
+                : 'https://trashsnap-worker.bellasenior.workers.dev';
+            
+            resultDiv.innerHTML = '🔄 Processing image...';
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    resultDiv.innerHTML = `
+                        <div class="description">
+                            <h3>🖼️ Image Description:</h3>
+                            <p>${result.imageDescription}</p>
+                        </div>
+                        
+                        <div class="classification">
+                            <h3>🎯 Classification Results:</h3>
+                            <div class="match top-match">
+                                🥇 <strong>${result.classification.topLabel}</strong> 
+                                (${(result.classification.confidence * 100).toFixed(2)}% confidence)
+                            </div>
+                            
+                            <h4>Other Matches:</h4>
+                            ${result.classification.allMatches.slice(1).map((item, i) => 
+                                `<div class="match">
+                                    ${i+2}. <strong>${item.label}</strong> 
+                                    (${(item.confidence * 100).toFixed(2)}%)
+                                </div>`
+                            ).join('')}
+                        </div>
+                        
+                        <div class="processing-info">
+                            <h3>ℹ️ Processing Information:</h3>
+                            <p><strong>Model:</strong> ${result.processingInfo.modelUsed}</p>
+                            <p><strong>Vision Model:</strong> ${result.processingInfo.visionModel}</p>
+                            <p><strong>Embedding Model:</strong> ${result.processingInfo.embeddingModel}</p>
+                            <p><strong>Total Labels:</strong> ${result.processingInfo.totalLabels}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="result">❌ Error: ${result.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Allow dropping files
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.querySelector('.upload-area');
+            const fileInput = document.getElementById('imageInput');
+            
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = '#f0f0f0';
+            });
+            
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = '';
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = '';
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('image/')) {
+                    fileInput.files = files;
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

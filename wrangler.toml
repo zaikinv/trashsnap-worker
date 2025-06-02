@@ -1,0 +1,19 @@
+name = "trashsnap-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-15"
+
+# KV namespace for storing precomputed text embeddings
+[[kv_namespaces]]
+binding = "EMBEDDINGS_KV"
+id = "632746a9a416483ea81f79303bfed0c7"
+preview_id = "2d6759750c484775bcc48afa2897517c"
+
+# Environment variables
+[env.production.vars]
+ENVIRONMENT = "production"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+
+[ai]
+binding = "AI" 
