@@ -71,23 +71,6 @@
             border-radius: 5px; 
             border-left: 4px solid #9c27b0; 
         }
-        .material-detection {
-            background: #e8f5e8;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
-            border-left: 4px solid #4caf50;
-        }
-        .material-tag {
-            display: inline-block;
-            background: #4caf50;
-            color: white;
-            padding: 4px 12px;
-            margin: 3px;
-            border-radius: 15px;
-            font-size: 14px;
-            font-weight: bold;
-        }
         .processing-info { 
             background: #fff3e0; 
             padding: 15px; 
@@ -239,17 +222,6 @@
                         <div class="description">
                             <h3>🖼️ Image Description:</h3>
                             <p>${result.imageDescription}</p>
-                        </div>
-                        
-                        <div class="material-detection">
-                            <h3>🧱 Material Detection:</h3>
-                            <p><strong>AI Analysis:</strong> ${result.materialDetection.materials}</p>
-                            <div style="margin-top: 10px;">
-                                <strong>Detected Materials:</strong><br>
-                                ${result.materialDetection.extractedMaterials.map(material => 
-                                    `<span class="material-tag">${material}</span>`
-                                ).join('')}
-                            </div>
                         </div>
                         
                         <div class="classification">
