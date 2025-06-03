@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>TrashSnap - Camera Classifier</title>
+    <title>TrashSnap</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { 
@@ -17,42 +17,45 @@
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        .upload-area { 
-            border: 2px dashed #ccc; 
-            padding: 20px; 
-            text-align: center; 
-            margin: 20px 0; 
-            border-radius: 10px;
-            background: #fafafa;
-        }
         .camera-section {
             margin: 20px 0;
             text-align: center;
-        }
-        .camera-controls {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin: 15px 0;
         }
         .camera-preview {
             max-width: 100%;
             border-radius: 10px;
             margin: 15px 0;
-            display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         .captured-image {
             max-width: 100%;
             border-radius: 10px;
             margin: 15px 0;
             display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
-        .result { 
-            background: #f5f5f5; 
-            padding: 15px; 
-            margin: 10px 0; 
-            border-radius: 5px; 
+        .classify-btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 20px 0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+        .classify-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        .classify-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         .description { 
             background: #e3f2fd; 
@@ -75,27 +78,6 @@
             border-radius: 5px; 
             border-left: 4px solid #ff9800; 
         }
-        input, button { 
-            margin: 5px; 
-            padding: 12px 20px; 
-            border-radius: 8px;
-            border: none;
-            font-size: 16px;
-        }
-        button { 
-            background: #4caf50; 
-            color: white; 
-            cursor: pointer; 
-            transition: background 0.3s;
-        }
-        button:hover { background: #45a049; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        .camera-btn { background: #2196f3; }
-        .camera-btn:hover { background: #1976d2; }
-        .capture-btn { background: #ff9800; }
-        .capture-btn:hover { background: #f57c00; }
-        .stop-btn { background: #f44336; }
-        .stop-btn:hover { background: #d32f2f; }
         .match { 
             margin: 5px 0; 
             padding: 8px; 
@@ -115,11 +97,7 @@
         }
         @media (max-width: 600px) {
             body { padding: 10px; }
-            .camera-controls {
-                flex-direction: column;
-                align-items: center;
-            }
-            button {
+            .classify-btn {
                 width: 100%;
                 max-width: 300px;
             }
@@ -128,32 +106,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>📱 TrashSnap - Camera Classifier</h1>
-        
         <div class="camera-section">
-            <h3>📷 Use Camera</h3>
-            <div class="camera-controls">
-                <button id="startCamera" class="camera-btn" onclick="startCamera()">
-                    📹 Start Camera
-                </button>
-                <button id="captureBtn" class="capture-btn" onclick="capturePhoto()" disabled>
-                    📸 Capture Photo
-                </button>
-                <button id="stopCamera" class="stop-btn" onclick="stopCamera()" disabled>
-                    ⏹️ Stop Camera
-                </button>
-            </div>
-            
             <video id="cameraPreview" class="camera-preview" autoplay playsinline></video>
             <canvas id="captureCanvas" style="display: none;"></canvas>
             <img id="capturedImage" class="captured-image" alt="Captured photo">
-        </div>
-        
-        <div class="upload-area">
-            <h3>📁 Or Upload Image</h3>
-            <input type="file" id="imageInput" accept="image/*">
-            <br>
-            <button onclick="classifyUploadedImage()">Classify Uploaded Image</button>
+            
+            <button id="classifyBtn" class="classify-btn" onclick="captureAndClassify()" disabled>
+                📸 Classify
+            </button>
         </div>
         
         <div id="result"></div>
@@ -163,12 +123,14 @@
         let stream = null;
         let capturedImageBlob = null;
 
+        // Auto-start camera when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            startCamera();
+        });
+
         async function startCamera() {
             const video = document.getElementById('cameraPreview');
-            const startBtn = document.getElementById('startCamera');
-            const captureBtn = document.getElementById('captureBtn');
-            const stopBtn = document.getElementById('stopCamera');
-            const resultDiv = document.getElementById('result');
+            const classifyBtn = document.getElementById('classifyBtn');
 
             try {
                 // Request rear camera specifically for mobile devices
@@ -181,25 +143,34 @@
                 };
 
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
                 video.srcObject = stream;
                 video.style.display = 'block';
                 
-                startBtn.disabled = true;
-                captureBtn.disabled = false;
-                stopBtn.disabled = false;
+                // Wait for video to be ready
+                video.onloadedmetadata = function() {
+                    classifyBtn.disabled = false;
+                };
                 
-                resultDiv.innerHTML = '';
             } catch (error) {
                 console.error('Error accessing camera:', error);
-                resultDiv.innerHTML = `<div class="error">❌ Camera Error: ${error.message}<br>Make sure you're using HTTPS and grant camera permissions.</div>`;
+                document.getElementById('result').innerHTML = `<div class="error">❌ Camera Error: ${error.message}<br>Make sure you're using HTTPS and grant camera permissions.</div>`;
+                
+                // Hide camera section if no camera access
+                video.style.display = 'none';
             }
         }
 
-        function capturePhoto() {
+        function captureAndClassify() {
             const video = document.getElementById('cameraPreview');
             const canvas = document.getElementById('captureCanvas');
             const capturedImg = document.getElementById('capturedImage');
+            const classifyBtn = document.getElementById('classifyBtn');
             const ctx = canvas.getContext('2d');
+
+            // Disable button during processing
+            classifyBtn.disabled = true;
+            classifyBtn.textContent = '🔄 Processing...';
 
             // Set canvas dimensions to match video
             canvas.width = video.videoWidth;
@@ -208,70 +179,35 @@
             // Draw the current video frame to canvas
             ctx.drawImage(video, 0, 0);
 
-            // Convert canvas to blob
-            canvas.toBlob(function(blob) {
+            // Convert canvas to blob and classify
+            canvas.toBlob(async function(blob) {
                 capturedImageBlob = blob;
                 
-                // Display the captured image
+                // Replace camera feed with captured photo
                 const imageUrl = URL.createObjectURL(blob);
                 capturedImg.src = imageUrl;
+                video.style.display = 'none';
                 capturedImg.style.display = 'block';
                 
-                // Automatically classify the captured image
-                classifyCapturedImage();
+                // Create form data and send for classification
+                const formData = new FormData();
+                formData.append('image', capturedImageBlob, 'captured-photo.jpg');
+                
+                await sendClassificationRequest(formData);
+                
+                // Return to camera feed after classification
+                capturedImg.style.display = 'none';
+                video.style.display = 'block';
+                
+                // Re-enable button
+                classifyBtn.disabled = false;
+                classifyBtn.textContent = '📸 Classify';
             }, 'image/jpeg', 0.8);
-        }
-
-        function stopCamera() {
-            const video = document.getElementById('cameraPreview');
-            const startBtn = document.getElementById('startCamera');
-            const captureBtn = document.getElementById('captureBtn');
-            const stopBtn = document.getElementById('stopCamera');
-
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-
-            video.style.display = 'none';
-            video.srcObject = null;
-            
-            startBtn.disabled = false;
-            captureBtn.disabled = true;
-            stopBtn.disabled = true;
-        }
-
-        async function classifyCapturedImage() {
-            if (!capturedImageBlob) {
-                alert('No image captured');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('image', capturedImageBlob, 'captured-photo.jpg');
-            
-            await sendClassificationRequest(formData);
-        }
-
-        async function classifyUploadedImage() {
-            const fileInput = document.getElementById('imageInput');
-            
-            if (!fileInput.files[0]) {
-                alert('Please select an image');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
-            
-            await sendClassificationRequest(formData);
         }
 
         async function sendClassificationRequest(formData) {
             const resultDiv = document.getElementById('result');
             const url = 'https://trashsnap-worker.bellasenior.workers.dev';
-            
-            resultDiv.innerHTML = '🔄 Processing image...';
             
             try {
                 const response = await fetch(url, {
@@ -319,34 +255,12 @@
                 resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
             }
         }
-        
-        // Allow dropping files
-        document.addEventListener('DOMContentLoaded', function() {
-            const uploadArea = document.querySelector('.upload-area');
-            const fileInput = document.getElementById('imageInput');
-            
-            uploadArea.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                uploadArea.style.backgroundColor = '#f0f0f0';
-            });
-            
-            uploadArea.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                uploadArea.style.backgroundColor = '';
-            });
-            
-            uploadArea.addEventListener('drop', function(e) {
-                e.preventDefault();
-                uploadArea.style.backgroundColor = '';
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0 && files[0].type.startsWith('image/')) {
-                    fileInput.files = files;
-                }
-            });
 
-            // Clean up camera on page unload
-            window.addEventListener('beforeunload', stopCamera);
+        // Clean up camera on page unload
+        window.addEventListener('beforeunload', function() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
         });
     </script>
 </body>

@@ -1,260 +1,37 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>TrashSnap - Camera Classifier</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrashSnap Worker Test</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 800px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .upload-area { 
-            border: 2px dashed #ccc; 
-            padding: 20px; 
-            text-align: center; 
-            margin: 20px 0; 
-            border-radius: 10px;
-            background: #fafafa;
-        }
-        .camera-section {
-            margin: 20px 0;
-            text-align: center;
-        }
-        .camera-controls {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin: 15px 0;
-        }
-        .camera-preview {
-            max-width: 100%;
-            border-radius: 10px;
-            margin: 15px 0;
-            display: none;
-        }
-        .captured-image {
-            max-width: 100%;
-            border-radius: 10px;
-            margin: 15px 0;
-            display: none;
-        }
-        .result { 
-            background: #f5f5f5; 
-            padding: 15px; 
-            margin: 10px 0; 
-            border-radius: 5px; 
-        }
-        .description { 
-            background: #e3f2fd; 
-            padding: 15px; 
-            margin: 10px 0; 
-            border-radius: 5px; 
-            border-left: 4px solid #2196f3; 
-        }
-        .classification { 
-            background: #f3e5f5; 
-            padding: 15px; 
-            margin: 10px 0; 
-            border-radius: 5px; 
-            border-left: 4px solid #9c27b0; 
-        }
-        .processing-info { 
-            background: #fff3e0; 
-            padding: 15px; 
-            margin: 10px 0; 
-            border-radius: 5px; 
-            border-left: 4px solid #ff9800; 
-        }
-        input, button { 
-            margin: 5px; 
-            padding: 12px 20px; 
-            border-radius: 8px;
-            border: none;
-            font-size: 16px;
-        }
-        button { 
-            background: #4caf50; 
-            color: white; 
-            cursor: pointer; 
-            transition: background 0.3s;
-        }
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .upload-area { border: 2px dashed #ccc; padding: 20px; text-align: center; margin: 20px 0; }
+        .result { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .description { background: #e3f2fd; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #2196f3; }
+        .classification { background: #f3e5f5; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #9c27b0; }
+        .processing-info { background: #fff3e0; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #ff9800; }
+        input, button { margin: 10px 0; padding: 10px; }
+        button { background: #4caf50; color: white; border: none; border-radius: 5px; cursor: pointer; }
         button:hover { background: #45a049; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        .camera-btn { background: #2196f3; }
-        .camera-btn:hover { background: #1976d2; }
-        .capture-btn { background: #ff9800; }
-        .capture-btn:hover { background: #f57c00; }
-        .stop-btn { background: #f44336; }
-        .stop-btn:hover { background: #d32f2f; }
-        .match { 
-            margin: 5px 0; 
-            padding: 8px; 
-            background: white; 
-            border-radius: 3px; 
-        }
-        .top-match { 
-            background: #c8e6c9; 
-            font-weight: bold; 
-        }
-        .error {
-            background: #ffebee;
-            color: #c62828;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-        }
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .camera-controls {
-                flex-direction: column;
-                align-items: center;
-            }
-            button {
-                width: 100%;
-                max-width: 300px;
-            }
-        }
+        .match { margin: 5px 0; padding: 8px; background: white; border-radius: 3px; }
+        .top-match { background: #c8e6c9; font-weight: bold; }
+        .url-toggle { margin: 10px 0; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📱 TrashSnap - Camera Classifier</h1>
-        
-        <div class="camera-section">
-            <h3>📷 Use Camera</h3>
-            <div class="camera-controls">
-                <button id="startCamera" class="camera-btn" onclick="startCamera()">
-                    📹 Start Camera
-                </button>
-                <button id="captureBtn" class="capture-btn" onclick="capturePhoto()" disabled>
-                    📸 Capture Photo
-                </button>
-                <button id="stopCamera" class="stop-btn" onclick="stopCamera()" disabled>
-                    ⏹️ Stop Camera
-                </button>
-            </div>
-            
-            <video id="cameraPreview" class="camera-preview" autoplay playsinline></video>
-            <canvas id="captureCanvas" style="display: none;"></canvas>
-            <img id="capturedImage" class="captured-image" alt="Captured photo">
-        </div>
-        
-        <div class="upload-area">
-            <h3>📁 Or Upload Image</h3>
-            <input type="file" id="imageInput" accept="image/*">
-            <br>
-            <button onclick="classifyUploadedImage()">Classify Uploaded Image</button>
-        </div>
-        
-        <div id="result"></div>
+    <h1>🗑️ TrashSnap Worker Test</h1>
+    
+    <div class="upload-area">
+        <input type="file" id="imageInput" accept="image/*">
+        <br>
+        <button onclick="classifyImage()">Classify Image</button>
     </div>
+    
+    <div id="result"></div>
 
     <script>
-        let stream = null;
-        let capturedImageBlob = null;
-
-        async function startCamera() {
-            const video = document.getElementById('cameraPreview');
-            const startBtn = document.getElementById('startCamera');
-            const captureBtn = document.getElementById('captureBtn');
-            const stopBtn = document.getElementById('stopCamera');
-            const resultDiv = document.getElementById('result');
-
-            try {
-                // Request rear camera specifically for mobile devices
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' }, // 'environment' = rear camera
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    }
-                };
-
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = stream;
-                video.style.display = 'block';
-                
-                startBtn.disabled = true;
-                captureBtn.disabled = false;
-                stopBtn.disabled = false;
-                
-                resultDiv.innerHTML = '';
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                resultDiv.innerHTML = `<div class="error">❌ Camera Error: ${error.message}<br>Make sure you're using HTTPS and grant camera permissions.</div>`;
-            }
-        }
-
-        function capturePhoto() {
-            const video = document.getElementById('cameraPreview');
-            const canvas = document.getElementById('captureCanvas');
-            const capturedImg = document.getElementById('capturedImage');
-            const ctx = canvas.getContext('2d');
-
-            // Set canvas dimensions to match video
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            // Draw the current video frame to canvas
-            ctx.drawImage(video, 0, 0);
-
-            // Convert canvas to blob
-            canvas.toBlob(function(blob) {
-                capturedImageBlob = blob;
-                
-                // Display the captured image
-                const imageUrl = URL.createObjectURL(blob);
-                capturedImg.src = imageUrl;
-                capturedImg.style.display = 'block';
-                
-                // Automatically classify the captured image
-                classifyCapturedImage();
-            }, 'image/jpeg', 0.8);
-        }
-
-        function stopCamera() {
-            const video = document.getElementById('cameraPreview');
-            const startBtn = document.getElementById('startCamera');
-            const captureBtn = document.getElementById('captureBtn');
-            const stopBtn = document.getElementById('stopCamera');
-
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-
-            video.style.display = 'none';
-            video.srcObject = null;
-            
-            startBtn.disabled = false;
-            captureBtn.disabled = true;
-            stopBtn.disabled = true;
-        }
-
-        async function classifyCapturedImage() {
-            if (!capturedImageBlob) {
-                alert('No image captured');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('image', capturedImageBlob, 'captured-photo.jpg');
-            
-            await sendClassificationRequest(formData);
-        }
-
-        async function classifyUploadedImage() {
+        async function classifyImage() {
             const fileInput = document.getElementById('imageInput');
+            const resultDiv = document.getElementById('result');
             
             if (!fileInput.files[0]) {
                 alert('Please select an image');
@@ -264,11 +41,7 @@
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
             
-            await sendClassificationRequest(formData);
-        }
-
-        async function sendClassificationRequest(formData) {
-            const resultDiv = document.getElementById('result');
+            // Use production URL only
             const url = 'https://trashsnap-worker.bellasenior.workers.dev';
             
             resultDiv.innerHTML = '🔄 Processing image...';
@@ -313,10 +86,10 @@
                         </div>
                     `;
                 } else {
-                    resultDiv.innerHTML = `<div class="error">❌ Error: ${result.error || 'Unknown error'}</div>`;
+                    resultDiv.innerHTML = `<div class="result">❌ Error: ${result.error || 'Unknown error'}</div>`;
                 }
             } catch (error) {
-                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                resultDiv.innerHTML = `<div class="result">❌ Error: ${error.message}</div>`;
             }
         }
         
@@ -344,9 +117,6 @@
                     fileInput.files = files;
                 }
             });
-
-            // Clean up camera on page unload
-            window.addEventListener('beforeunload', stopCamera);
         });
     </script>
 </body>
